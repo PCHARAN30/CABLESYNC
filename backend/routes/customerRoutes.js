@@ -16,22 +16,41 @@ const {
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({
+      success: false,
+      message: errors.array().map((e) => e.msg).join("; "),
+      errors: errors.array(),
+    });
   }
   next();
 };
 
 const customerValidationRules = [
-  body("name").not().isEmpty().withMessage("Name is required").trim(),
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Name is required"),
+
+  // Accept the normal Indian 10-digit format and common +91 formatting.
+  // The controller normalizes it before saving. This avoids the brittle
+  // locale validator that was returning an unhelpful 400 on deployment.
   body("phone")
-    .isMobilePhone("en-IN")
-    .withMessage("Valid Indian phone number is required"),
+    .trim()
+    .custom((value) => {
+      const digits = String(value).replace(/\D/g, "");
+      if (/^[6-9]\d{9}$/.test(digits) || /^91[6-9]\d{9}$/.test(digits)) {
+        return true;
+      }
+      throw new Error("Valid Indian phone number is required");
+    }),
+
   body("cafNumber")
-    .not()
-    .isEmpty()
-    .withMessage("CAF Number is required")
-    .trim(),
+    .trim()
+    .notEmpty()
+    .withMessage("CAF Number is required"),
+
   body("monthlyFee")
+    .toFloat()
     .isFloat({ gt: 0 })
     .withMessage("Monthly fee must be a positive number"),
 ];

@@ -62,7 +62,12 @@ const CustomerForm = forwardRef(function CustomerForm({ initialValues, onSubmit,
     try {
       await onSubmit({ ...form, monthlyFee: Number(form.monthlyFee) });
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not save customer.');
+      setError(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.errors?.map((e) => e.msg).join('; ') ||
+        'Could not save customer.'
+      );
     } finally {
       setSaving(false);
     }

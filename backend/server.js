@@ -10,6 +10,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const importRoutes = require("./routes/importRoutes");
 const exportRoutes = require("./routes/exportRoutes");
+const searchRoutes = require("./routes/searchRoutes");
 
 const app = express();
 
@@ -53,12 +54,17 @@ app.use("/dashboard", dashboardRoutes);
 app.use("/reports", reportRoutes);
 app.use("/import", importRoutes);
 app.use("/export", exportRoutes);
+app.use("/search", searchRoutes);
 
 // --- Error handling fallback ---
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong" });
+  console.error("Unhandled API error:", err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Something went wrong",
+  });
 });
 
 const PORT = process.env.PORT || 5000;
