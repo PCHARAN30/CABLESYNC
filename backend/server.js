@@ -16,8 +16,29 @@ const app = express();
 // --- Middleware ---
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
   .split(",")
-  .map((s) => s.trim());
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : "*" }));
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header
+      // such as health checks/server-to-server requests.
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-operator-pin"],
+    credentials: false,
+  }),
+);
 app.use(express.json());
 
 // Health check - no PIN required, useful for Render's uptime pings
