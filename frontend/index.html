@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>CableSync</title>
+    <script>
+      // Apply the saved theme before React mounts (and on every page, not
+      // just Settings) so dark mode actually persists across refresh and
+      // across routes instead of only applying while Settings.jsx is open.
+      (function () {
+        try {
+          if (localStorage.getItem("cablesync_theme") === "dark") {
+            document.addEventListener("DOMContentLoaded", function () {
+              document.body.classList.add("dark-mode");
+            });
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

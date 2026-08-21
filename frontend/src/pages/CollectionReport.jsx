@@ -1,0 +1,33 @@
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ArrowUpRight, MapPinned, TrendingUp, UserRoundX, WalletCards } from "lucide-react";
+import TopBar from "../components/TopBar";
+import api from "../services/api";
+import { formatCurrency } from "../utils/format";
+
+const REPORTS = {
+  monthly: { title: "Monthly collection", eyebrow: "Financial overview", endpoint: "/reports/monthly-collection", icon: WalletCards },
+  area: { title: "Area collection", eyebrow: "Collection by service area", endpoint: "/reports/area-collection", icon: MapPinned },
+  defaulters: { title: "Top defaulters", eyebrow: "Follow-up priority", endpoint: "/reports/top-defaulters", icon: UserRoundX },
+  trend: { title: "Collection trend", eyebrow: "Six-month view", endpoint: "/reports/collection-trend", icon: TrendingUp },
+};
+const monthLabel = (month, year) => new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, month - 1));
+
+export default function CollectionReport() {
+  const { type } = useParams();
+  const report = REPORTS[type];
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["collectionReport", type], queryFn: () => api.get(report.endpoint).then((res) => res.data), enabled: Boolean(report) });
+  if (!report) return null;
+  const Icon = report.icon;
+
+  return <div className="app-page"><TopBar title={report.title} backTo="/reports" /><main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8"><div className="mb-6 flex items-end justify-between gap-3"><div><p className="text-sm font-semibold text-brass-dark">{report.eyebrow}</p><h1 className="font-display text-3xl font-semibold text-ink">{report.title}</h1></div><button onClick={() => refetch()} className="btn-orbit px-3 py-2 text-sm">Refresh</button></div>{isLoading && <div className="h-64 animate-pulse rounded-2xl bg-card" />}{isError && <div className="rounded-2xl bg-due-soft p-8 text-center"><AlertTriangle className="mx-auto text-due" /><p className="mt-3 font-semibold text-ink">Couldn’t load this report</p><p className="mt-1 text-sm text-ink-soft">{error.message}</p></div>}{data && <ReportBody type={type} data={data} Icon={Icon} />}</main></div>;
+}
+
+function ReportBody({ type, data, Icon }) {
+  if (type === "monthly") return <><div className="rounded-2xl border border-hairline bg-card p-6 shadow-ledger"><div className="flex items-center justify-between"><div><p className="text-sm text-ink-soft">{monthLabel(data.month, data.year)}</p><p className="mt-1 font-display text-3xl font-semibold text-ink">{formatCurrency(data.collected)}</p><p className="text-sm text-ink-soft">{data.payments} payments recorded</p></div><span className="grid h-12 w-12 place-items-center rounded-xl bg-brass/10 text-brass"><Icon className="h-6 w-6" /></span></div><div className="mt-6 h-3 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-brass" style={{ width: `${Math.min(data.collectionRate, 100)}%` }} /></div><div className="mt-3 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3"><Metric label="Total billed" value={formatCurrency(data.billed)} /><Metric label="Outstanding" value={formatCurrency(data.outstanding)} /><Metric label="Collection rate" value={`${data.collectionRate}%`} /></div></div></>;
+  if (type === "area") return <section className="overflow-hidden rounded-2xl border border-hairline bg-card shadow-ledger"><div className="border-b border-hairline bg-paper px-5 py-4 text-sm font-semibold text-ink">{monthLabel(data.month, data.year)} by area</div><div className="divide-y divide-hairline">{data.areas.map((item) => <div key={item.area} className="grid grid-cols-[1fr_auto] gap-3 px-5 py-4 sm:grid-cols-[1.4fr_1fr_1fr_1fr]"><div><p className="font-semibold text-ink">{item.area}</p><p className="text-sm text-ink-soft">{item.customers} customers</p></div><Metric label="Billed" value={formatCurrency(item.billed)} /><Metric label="Collected" value={formatCurrency(item.collected)} valueClass="text-paid" /><Metric label="Outstanding" value={formatCurrency(item.outstanding)} valueClass="text-due" /></div>)}</div></section>;
+  if (type === "defaulters") return <><div className="mb-5 grid gap-4 sm:grid-cols-2"><Summary label="Customers requiring follow-up" value={data.count} /><Summary label="Outstanding in this list" value={formatCurrency(data.totalOutstanding)} danger /></div><section className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-card shadow-ledger">{data.customers.map((customer, index) => <Link to={`/customers/${customer._id}`} key={customer._id} className="flex items-center gap-4 px-5 py-4 hover:bg-paper"><span className="grid h-8 w-8 place-items-center rounded-lg bg-due-soft text-sm font-bold text-due">{index + 1}</span><div className="min-w-0 flex-1"><p className="font-semibold text-ink">{customer.name}</p><p className="text-sm text-ink-soft">{customer.area || "No area"} · {customer.phone}</p></div><span className="font-mono font-semibold text-due">{formatCurrency(customer.arrears)}</span><ArrowUpRight className="h-4 w-4 text-ink-soft" /></Link>)}</section></>;
+  const max = Math.max(...data.trend.map((item) => item.collected), 1); return <section className="rounded-2xl border border-hairline bg-card p-5 shadow-ledger sm:p-7"><div className="flex h-64 items-end gap-3 sm:gap-5">{data.trend.map((item) => <div key={`${item.year}-${item.month}`} className="flex min-w-0 flex-1 flex-col items-center gap-2"><span className="text-xs font-semibold text-ink">{item.collected ? formatCurrency(item.collected) : "—"}</span><div className="w-full rounded-t-lg bg-brass/20 p-1" style={{ height: `${Math.max((item.collected / max) * 180, 6)}px` }}><div className="h-full rounded-t bg-brass" /></div><span className="text-center text-xs text-ink-soft">{new Intl.DateTimeFormat("en-IN", { month: "short" }).format(new Date(item.year, item.month - 1))}</span></div>)}</div><p className="mt-6 text-center text-sm text-ink-soft">Monthly payments recorded over the last six months.</p></section>;
+}
+function Metric({ label, value, valueClass = "text-ink" }) { return <div><p className="text-xs uppercase tracking-wide text-ink-soft">{label}</p><p className={`mt-1 font-mono font-semibold ${valueClass}`}>{value}</p></div>; }
+function Summary({ label, value, danger = false }) { return <div className="rounded-2xl border border-hairline bg-card p-5 shadow-ledger"><p className="text-sm text-ink-soft">{label}</p><p className={`mt-2 font-display text-3xl font-semibold ${danger ? "text-due" : "text-ink"}`}>{value}</p></div>; }
